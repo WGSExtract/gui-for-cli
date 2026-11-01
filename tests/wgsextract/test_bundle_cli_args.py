@@ -217,7 +217,8 @@ class BundleSandbox:
             "lineage_tree_links": "--tree-links",
             "realign_keep_fastq": "--keep-fastq",
             "gatk_scatter": "--scatter",
-            "multiqc_input": str(data / "reports"),
+            "multiqc_input": self._file("reports/sample_fastqc.zip"),
+            "multiqc_directory": str(data / "reports"),
             "multiqc_force": "--force",
         }
 

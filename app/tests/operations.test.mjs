@@ -16,6 +16,7 @@ globalThis.document = {
 
 const { createInitialState, state } = await import("../dist/web/src/client/state.js");
 const { ensureDataSource, openBundleWorkspace, retryDataSource, runAction, runSetup } = await import("../dist/web/src/client/operations.js");
+const { renderConfigSetting } = await import("../dist/web/src/client/view.js");
 
 function resetState() {
   Object.assign(state, createInitialState(), {
@@ -35,6 +36,17 @@ function resetState() {
     bundleRootPath: "/bundle",
   });
 }
+
+test("Settings toggles display native and form-encoded boolean values correctly", () => {
+  resetState();
+  const control = { id: "settings" };
+  const setting = { id: "enabled", kind: "toggle", label: "Enabled", value: false };
+  for (const [value, checked] of [[true, true], ["true", true], [false, false], ["false", false]]) {
+    state.configValues = { "settings.enabled": value };
+    const html = renderConfigSetting(control, setting, {});
+    assert.equal(/type="checkbox"\s+checked/.test(html), checked);
+  }
+});
 
 async function waitUntil(predicate) {
   for (let attempt = 0; attempt < 50; attempt += 1) {

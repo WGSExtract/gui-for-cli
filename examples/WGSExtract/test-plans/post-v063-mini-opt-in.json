@@ -7,7 +7,7 @@
       "ref_path": "{{bundleWorkspace}}/reference",
       "out_dir": "{{bundleWorkspace}}/output/post-v063",
       "fastq_r1": "{{bundleWorkspace}}/genomes/wgsextract-benchmark-hg19-mini/HG00096.hg19-mini_R1.fastq.gz",
-      "multiqc_input": "{{bundleWorkspace}}/genomes/wgsextract-benchmark-hg19-mini"
+      "multiqc_directory": "{{bundleWorkspace}}/output"
     }
   },
   "steps": [
@@ -50,7 +50,7 @@
       "kind": "action",
       "pageID": "fastq",
       "sectionID": "multiqc",
-      "actionID": "multiqc",
+      "actionID": "multiqc-directory",
       "requiredOutput": ["multiqc_report.html"],
       "timeoutSeconds": 600
     },
@@ -59,7 +59,7 @@
       "kind": "action",
       "pageID": "fastq",
       "sectionID": "multiqc",
-      "actionID": "multiqc",
+      "actionID": "multiqc-directory",
       "inputs": {
         "checkedOptions": {
           "multiqc_force": ["--force"]

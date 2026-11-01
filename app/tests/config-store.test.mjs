@@ -3,8 +3,10 @@ import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, wri
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { parseFlatToml } from "../dist/shared/rendering.js";
 
-const { loadBundleState, saveBundleState, takeBundleStateWarning, writeFileAtomically } = await import("../dist/web/src/server/config-store.js");
+const { bootstrapConfigFiles, loadBundleState, loadConfig, saveBundleState, saveConfig, takeBundleStateWarning, writeFileAtomically } = await import("../dist/web/src/server/config-store.js");
 
 async function tempDirectory(t) {
   const directory = await mkdtemp(path.join(tmpdir(), "gui-for-cli-config-store-"));
@@ -60,4 +62,61 @@ test("atomic writes follow symlinks and keep file permissions", { skip: process.
   assert.equal(await readFile(target, "utf8"), "new\n");
   assert.equal((await stat(target)).mode & 0o777, 0o600);
   assert.ok((await lstat(link)).isSymbolicLink());
+});
+
+function parseSavedToml(text) {
+  for (const python of ["python3", "python"]) {
+    const result = spawnSync(python, [
+      "-c", "import json,sys,tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))",
+    ], { input: text, encoding: "utf8" });
+    if (result.error?.code === "ENOENT" || /No module named ['"]tomllib['"]/.test(result.stderr ?? "")) continue;
+    assert.equal(result.status, 0, result.stderr || String(result.error ?? ""));
+    return JSON.parse(result.stdout);
+  }
+  return parseFlatToml(text);
+}
+
+test("saving WGSExtract Settings keeps disabled/enabled/disabled toggles as native TOML booleans", async (t) => {
+  const bundleRoot = await tempDirectory(t);
+  const page = JSON.parse(await readFile(new URL("../../examples/WGSExtract/pages/settings.json", import.meta.url), "utf8"));
+  const control = page.sections.flatMap((section) => section.controls ?? []).find((item) => item.kind === "configEditor");
+
+  for (const [value, expected] of [[false, false], ["true", true], ["false", false]]) {
+    const saved = await saveConfig(control, undefined, {
+      atomic_outputs: value, keep_awake: value, output_directory: "123", reference_library: "false",
+    }, bundleRoot);
+    const text = await readFile(saved.path, "utf8");
+    const parsed = parseSavedToml(text);
+    assert.equal(parsed.atomic_outputs, expected);
+    assert.equal(parsed.keep_awake, expected);
+    assert.equal(parsed.output_directory, "123");
+    assert.equal(parsed.reference_library, "false");
+    assert.match(text, new RegExp(`atomic_outputs = ${expected}\\n`));
+    const loaded = await loadConfig(control, undefined, bundleRoot);
+    assert.equal(loaded.values.atomic_outputs, expected);
+    assert.equal(loaded.values.keep_awake, expected);
+  }
+});
+
+test("typed setting defaults preserve numbers and booleans when bootstrap merges missing keys", async (t) => {
+  const bundleRoot = await tempDirectory(t);
+  const control = {
+    id: "settings", kind: "configEditor",
+    configFile: { path: "{{bundleWorkspace}}/settings/typed.toml", bootstrap: { mode: "mergeMissing" } },
+    settings: [
+      { id: "enabled", key: "enabled", kind: "toggle", value: false },
+      { id: "workers", key: "workers", kind: "text", value: 4 },
+      { id: "ratio", key: "ratio", kind: "text", value: 0.5 },
+      { id: "label", key: "label", kind: "text", value: "default" },
+    ],
+  };
+  const saved = await saveConfig(control, undefined, {
+    enabled: "false", workers: "8", ratio: "1.5", label: "false",
+  }, bundleRoot);
+  control.settings.push({ id: "added", key: "added", kind: "text", value: "new" });
+  await bootstrapConfigFiles({ pages: [{ sections: [{ controls: [control] }] }] }, bundleRoot, { settings: saved.path });
+  assert.deepEqual({ ...parseSavedToml(await readFile(saved.path, "utf8")) }, {
+    added: "new", enabled: false, label: "false", ratio: 1.5, workers: 8,
+  });
+  await assert.rejects(saveConfig(control, undefined, { workers: "invalid" }, bundleRoot), /Invalid number value/);
 });

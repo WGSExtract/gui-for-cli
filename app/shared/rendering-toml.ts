@@ -1,4 +1,4 @@
-import type { StringMap } from "./types.js";
+import type { ValueMap } from "./types.js";
 
 export function serializeFlatToml(values: Record<string, unknown>): string {
     return `${Object.entries(values)
@@ -6,8 +6,8 @@ export function serializeFlatToml(values: Record<string, unknown>): string {
         .map(([key, value]) => `${tomlKey(key)} = ${tomlValue(value)}`)
         .join("\n")}\n`;
 }
-export function parseFlatToml(text: string): StringMap {
-    const values: StringMap = Object.create(null);
+export function parseFlatToml(text: string): ValueMap {
+    const values: ValueMap = Object.create(null);
     for (const rawLine of text.split(/\r?\n/)) {
         const line = rawLine.trim();
         if (!line || line.startsWith("#") || !line.includes("=")) {
@@ -19,7 +19,7 @@ export function parseFlatToml(text: string): StringMap {
         }
         const rawKey = line.slice(0, separator).trim();
         const rawValue = stripInlineComment(line.slice(separator + 1).trim());
-        const key = rawKey.startsWith('"') ? parseTomlValue(rawKey) : rawKey;
+        const key = rawKey.startsWith('"') ? String(parseTomlValue(rawKey)) : rawKey;
         values[key] = parseTomlValue(rawValue);
     }
     return values;
@@ -61,6 +61,15 @@ function tomlKey(key: string): string {
     return /^[A-Za-z0-9_-]+$/.test(key) ? key : tomlValue(key);
 }
 function tomlValue(value: unknown): string {
+    if (typeof value === "boolean") {
+        return String(value);
+    }
+    if (typeof value === "number") {
+        if (!Number.isFinite(value)) {
+            throw new Error("TOML numbers must be finite.");
+        }
+        return String(value);
+    }
     return `"${String(value ?? "")
         .replaceAll("\\", "\\\\")
         .replaceAll('"', '\\"')
@@ -68,8 +77,14 @@ function tomlValue(value: unknown): string {
 }
 const tomlEscapes: Record<string, string> = { n: "\n", r: "\r", t: "\t", '"': '"', "\\": "\\" };
 
-function parseTomlValue(value: string): string {
+function parseTomlValue(value: string): string | number | boolean {
     if (!value.startsWith('"') || !value.endsWith('"')) {
+        if (value === "true" || value === "false") {
+            return value === "true";
+        }
+        if (/^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value) && Number.isFinite(Number(value))) {
+            return Number(value);
+        }
         return value;
     }
     return value

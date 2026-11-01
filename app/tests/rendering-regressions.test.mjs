@@ -89,4 +89,9 @@ test("WGSExtract targeted opt-ins are restricted to the relevant commands", () =
   }, { multiqc_force: ["--force"] }), [
     "qc", "multiqc", "--input", "reports with spaces", "--outdir", "new reports", "--force",
   ]);
+  assert.deepEqual(wgsCommand("fastq", "multiqc-directory", {
+    multiqc_directory: "directory with spaces", out_dir: "new reports",
+  }), [
+    "qc", "multiqc", "--input", "directory with spaces", "--outdir", "new reports",
+  ]);
 });

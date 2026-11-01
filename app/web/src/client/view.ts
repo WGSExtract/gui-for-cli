@@ -349,7 +349,7 @@ export function renderConfigSetting(control: ControlSpec, setting: ConfigSetting
         return `
       <label class="toggle-row">
         <span class="row-label">${escapeHTML(setting.label)}${renderTooltip(setting.tooltip)}</span>
-        <input type="checkbox" ${value === "true" ? "checked" : ""} ${common} data-toggle>
+        <input type="checkbox" ${value === true || value === "true" ? "checked" : ""} ${common} data-toggle>
       </label>
     `;
     }

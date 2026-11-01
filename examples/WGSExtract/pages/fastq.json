@@ -10,8 +10,16 @@
       "controls": [
         {
           "id": "multiqc_input",
-          "label": "controls.fastq.post-v063.multiqc-input.label",
+          "label": "controls.fastq.post-v063.multiqc-file.label",
           "kind": "path",
+          "pathType": "file",
+          "tooltip": "controls.fastq.post-v063.multiqc-input.tooltip"
+        },
+        {
+          "id": "multiqc_directory",
+          "label": "controls.fastq.post-v063.multiqc-directory.label",
+          "kind": "path",
+          "pathType": "directory",
           "tooltip": "controls.fastq.post-v063.multiqc-input.tooltip"
         },
         {
@@ -39,6 +47,29 @@
               "multiqc",
               "--input",
               "{{multiqc_input}}"
+            ],
+            "optionalArguments": [
+              [
+                "--outdir",
+                "{{out_dir}}"
+              ],
+              [
+                "{{multiqc_force}}"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "multiqc-directory",
+          "title": "actions.fastq.post-v063.multiqc-directory.title",
+          "tooltip": "actions.fastq.post-v063.multiqc.tooltip",
+          "command": {
+            "executable": "{{bundleRoot}}/scripts/run-wgsextract.sh",
+            "arguments": [
+              "qc",
+              "multiqc",
+              "--input",
+              "{{multiqc_directory}}"
             ],
             "optionalArguments": [
               [

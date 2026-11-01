@@ -28,6 +28,13 @@ false. All operations remain explicit user actions.
 - **Settings:** opt-in persistent logs, an existing temporary-workload volume,
   atomic main-output publication and best-effort keep-awake.
 
+Settings toggles save as native TOML booleans, including `false`; values from
+form inputs are converted according to the setting's kind/default. Numeric
+defaults declare numeric settings; path/text defaults remain strings even when
+their text is `false` or `123`. Bootstrap merging preserves scalar TOML types.
+All existing WGSExtract non-toggle settings are strings; the unrelated Annotate
+toggle is stored in GUI JSON state, not the CLI TOML file.
+
 ## Release and validation
 
 The hourly CLI release watcher opens a separate `cli-<tag>` bundle-bump PR and
@@ -39,6 +46,9 @@ rebase. Root approves all merges.
 Run `make lint` and `make test`. Renderer tests check unchanged defaults and
 opt-in argument routing; POSIX wrapper tests check argument boundaries and,
 when a CLI interpreter is available, actual argparse compatibility.
+CI conformance rejects post-v0.6.3 controls/actions/formats while the bundled pin
+is older than v0.6.4. Its failure is intentional until the genuine release bump
+lands; never fake the pin or disable the test to make this PR mergeable.
 
 After the bundle bump, run the existing hg19 mini baseline plan, then
 `post-v063-mini-opt-in.json` against the same workspace. MultiQC must already be
@@ -50,6 +60,9 @@ selection if the reference dropdown has not yet been selected. On real data,
 exercise the new layouts, AADR, quality/strand policies, manifest I/D, CHM13,
 Poz/yBrowse and Ultima scattering. They are not interchangeable with the scaled
 mini reference. Verify Windows cancel terminates the tool tree.
+The mini plan scans the bootstrapped `output` directory for FastQC reports;
+its per-action output field does not change FastQC's inherited CLI config.
+MultiQC offers separate file and directory pickers/actions.
 
 ARM64 GUI packaging is a separate follow-up: neither Linux ARM64 nor Windows
 ARM64 is currently built in distribution/installer CI. Native Node sidecars are
