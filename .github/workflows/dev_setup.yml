@@ -111,11 +111,7 @@ jobs:
           if ($needsWarning -and -not (Select-String -Quiet "New-terminal PATH conflict" tmp\dev-setup\new-shell-rerun.log)) { throw "Older machine Node was silently preferred." }
           # Apply the documented session-only fix, then launch a genuinely new shell.
           $env:Path = "$nodeRoot;$env:Path"
-          powershell -NoProfile -Command '$root = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "gui-for-cli\node"; if (-not (Get-Command node).Source.StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase)) { throw "Hosted Node shadowed setup Node." }; uv --version; if ($LASTEXITCODE -ne 0) { exit 1 }; node --version; if ($LASTEXITCODE -ne 0) { exit 1 }; npm.cmd --version; if ($LASTEXITCODE -ne 0) { exit 1 }; cargo --version; if ($LASTEXITCODE -ne 0) { exit 1 }; powershell -ExecutionPolicy Bypass -File .\make.ps1 precheck; exit $LASTEXITCODE'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell -NoProfile -Command 'uv run --locked python scripts/smoke-dev.py; exit $LASTEXITCODE'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell -NoProfile -Command 'npm.cmd --prefix app run tauri:prepare-node; if ($LASTEXITCODE -ne 0) { exit 1 }; node app/scripts/run-tauri.mjs build --debug --no-bundle; exit $LASTEXITCODE'
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-new-shell.ps1
           exit $LASTEXITCODE
       - name: Upload setup smoke evidence
         if: always()
