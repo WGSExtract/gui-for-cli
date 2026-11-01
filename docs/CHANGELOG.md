@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Changed
+- Bundle WGSExtract CLI `v0.6.4`: adds opt-in MultiQC, expanded microarray/AADR exports and targeted Y analysis, streamed eligible small paired realignment, and safer downloads, outputs and Windows cancellation ([CLI release notes](https://github.com/theontho/wgsextract-cli/releases/tag/v0.6.4)).
 - Bundle WGSExtract CLI `v0.6.3`: alignment output no longer depends on thread count, BWA-MEM2 sorts in less memory, alignment checks memory before starting and falls back to BWA when MEM2 won't fit, long jobs show memory and disk estimates up front, and SNP/indel calling can optionally run per chromosome in parallel. Native Windows is now validated on full genomes ([CLI release notes](https://github.com/theontho/wgsextract-cli/releases/tag/v0.6.3)).
 
 ## [0.6.2] - 2026-10-27
