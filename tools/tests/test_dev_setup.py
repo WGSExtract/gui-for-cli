@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import tempfile
 import unittest
@@ -24,6 +25,77 @@ REGISTER_SPEC.loader.exec_module(register)
 
 
 class DesktopPrerequisiteTests(unittest.TestCase):
+    def test_smoke_preserves_existing_app_files_and_removes_private_workspace(
+        self,
+    ) -> None:
+        node = setup.shutil.which("node")
+        if not node:
+            self.skipTest("Node is required for the smoke probe")
+        variable = (
+            "LOCALAPPDATA"
+            if sys.platform == "win32"
+            else "HOME"
+            if sys.platform == "darwin"
+            else "XDG_DATA_HOME"
+        )
+        (setup.ROOT / "tmp").mkdir(exist_ok=True)
+        for failing in (False, True):
+            with (
+                self.subTest(failing=failing),
+                tempfile.TemporaryDirectory(dir=setup.ROOT / "tmp") as directory,
+            ):
+                personal = Path(directory)
+                original = personal / "personal-ui/state.json"
+                original.parent.mkdir()
+                original.write_text("keep", encoding="utf-8")
+                source = (
+                    'const fs = require("node:fs"), path = require("node:path");'
+                    f"const root = process.env[{json.dumps(variable)}];"
+                    "const name = process.env.GUI_FOR_CLI_APP_SUPPORT_NAME;"
+                    'const marker = path.join(root, name, "state.json");'
+                    "fs.mkdirSync(path.dirname(marker), {recursive:true});"
+                    'fs.writeFileSync(marker, "smoke");'
+                    'console.log("SMOKE_STATE " + JSON.stringify({root, name, marker}));'
+                )
+                source += (
+                    "process.exit(7);"
+                    if failing
+                    else 'const server = require("node:http").createServer((req, res) => res.end("<html>probe</html>"));'
+                    'server.listen(0, "127.0.0.1", () => console.log("Web UI: http://127.0.0.1:" + server.address().port + "/"));'
+                )
+                with patch.dict(
+                    setup.os.environ,
+                    {
+                        "GUI_FOR_CLI_APP_SUPPORT_NAME": "personal-ui",
+                        "HOME": str(personal),
+                        "LOCALAPPDATA": str(personal),
+                        "XDG_DATA_HOME": str(personal),
+                    },
+                ):
+                    if failing:
+                        with self.assertRaises(RuntimeError):
+                            setup.smoke([node, "-e", source])
+                    else:
+                        setup.smoke([node, "-e", source])
+                    self.assertEqual(
+                        setup.os.environ["GUI_FOR_CLI_APP_SUPPORT_NAME"], "personal-ui"
+                    )
+                line = next(
+                    line
+                    for line in (setup.ROOT / "tmp/dev-setup/dev-smoke.log")
+                    .read_text()
+                    .splitlines()
+                    if line.startswith("SMOKE_STATE ")
+                )
+                state = json.loads(line.removeprefix("SMOKE_STATE "))
+                self.assertNotEqual(state["name"], "personal-ui")
+                self.assertTrue(
+                    Path(state["root"]).is_relative_to(setup.ROOT / "tmp/dev-setup")
+                )
+                self.assertFalse(Path(state["root"]).exists())
+                self.assertFalse(Path(state["marker"]).exists())
+                self.assertEqual(original.read_text(), "keep")
+
     def test_windows_sdk_needs_um_and_ucrt_from_the_same_version(self) -> None:
         (setup.ROOT / "tmp").mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=setup.ROOT / "tmp") as directory:

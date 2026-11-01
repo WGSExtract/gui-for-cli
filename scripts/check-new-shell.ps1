@@ -7,6 +7,16 @@ if (-not $node.Source.StartsWith("$nodeRoot\", [StringComparison]::OrdinalIgnore
     throw "Hosted Node shadowed setup Node: $($node.Source)"
 }
 Write-Host "New-shell Node: $($node.Source)"
+$homeDirectory = [Environment]::GetFolderPath("UserProfile")
+$toolDirectories = @{ "uv" = ".local\bin"; "cargo" = ".cargo\bin" }
+foreach ($tool in @("uv", "cargo")) {
+    $directory = Join-Path $homeDirectory $toolDirectories[$tool]
+    $command = Get-Command $tool -CommandType Application
+    if (-not $command.Source.StartsWith("$directory\", [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Hosted $tool shadowed setup tool: $($command.Source)"
+    }
+    Write-Host "New-shell ${tool}: $($command.Source)"
+}
 foreach ($tool in @("uv", "node", "npm.cmd", "cargo")) {
     & $tool --version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -116,8 +116,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (Select-String -Quiet "Open a new terminal" tmp\dev-setup\new-shell-rerun.log) { throw "Tool-ready rerun printed new-terminal notice." }
           if ($needsWarning -and -not (Select-String -Quiet "New-terminal PATH conflict" tmp\dev-setup\new-shell-rerun.log)) { throw "Older machine Node was silently preferred." }
-          # Apply the documented session-only fix, then launch a genuinely new shell.
-          $env:Path = "$nodeRoot;$env:Path"
+          # Full machine PATH above is only the conflict probe, not bootstrap validation.
+          # Validate the persisted user paths without manually injecting the Node directory.
+          $env:Path = "$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0;C:\Program Files\Git\cmd;" + [Environment]::GetEnvironmentVariable("Path", "User")
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-new-shell.ps1
           exit $LASTEXITCODE
       - name: Upload setup smoke evidence

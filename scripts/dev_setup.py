@@ -11,6 +11,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -121,7 +122,23 @@ def smoke(command: list[str] | None = None) -> None:
     log_path = ROOT / "tmp/dev-setup" / ("dev-smoke.log" if command else "smoke.log")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     smoke_url: str | None = None
-    with log_path.open("w", encoding="utf-8") as log:
+    with (
+        tempfile.TemporaryDirectory(prefix="smoke-", dir=log_path.parent) as directory,
+        log_path.open("w", encoding="utf-8") as log,
+    ):
+        private_root = Path(directory)
+        data_root = private_root / "data"
+        data_root.mkdir()
+        child_env = {
+            **os.environ,
+            "GUI_FOR_CLI_APP_SUPPORT_NAME": f"gui-for-cli-{private_root.name}",
+        }
+        if sys.platform == "win32":
+            child_env["LOCALAPPDATA"] = str(data_root)
+        elif sys.platform == "darwin":
+            child_env["HOME"] = str(data_root)
+        else:
+            child_env["XDG_DATA_HOME"] = str(data_root)
         process = subprocess.Popen(
             command
             or [
@@ -134,6 +151,7 @@ def smoke(command: list[str] | None = None) -> None:
             ],
             stdout=log,
             stderr=subprocess.STDOUT,
+            env=child_env,
             start_new_session=sys.platform != "win32",
         )
         try:

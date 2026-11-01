@@ -30,7 +30,9 @@ powershell -ExecutionPolicy Bypass -File .\make.ps1 setup
   `uv run python scripts/dev-register.py` before committing.
 - Checks tool versions and locked Cargo metadata, compiles TypeScript, starts the
   real GitHelper server on an ephemeral loopback port, verifies HTTP 200, and
-  stops it. The smoke log is in `tmp/dev-setup/smoke.log`.
+  stops it. Smoke children use a private app-support container under
+  `tmp/dev-setup/`, removed afterward; existing GUI sessions are untouched.
+  The smoke log is in `tmp/dev-setup/smoke.log`.
 - Advises about GitHub CLI authentication and an optional AI-agent CLI. It does
   **not** install or authenticate these, or change your Git identity.
 
