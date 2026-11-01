@@ -82,8 +82,10 @@ function parseTomlValue(value: string): string | number | boolean {
         if (value === "true" || value === "false") {
             return value === "true";
         }
-        if (/^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value) && Number.isFinite(Number(value))) {
-            return Number(value);
+        const numericValue = value.replaceAll("_", "");
+        if (/^[+-]?\d(?:_?\d)*(?:\.\d(?:_?\d)*)?(?:[eE][+-]?\d(?:_?\d)*)?$/.test(value)
+            && Number.isFinite(Number(numericValue))) {
+            return Number(numericValue);
         }
         return value;
     }

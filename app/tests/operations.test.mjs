@@ -48,6 +48,20 @@ test("Settings toggles display native and form-encoded boolean values correctly"
   }
 });
 
+test("Settings numeric dropdowns select the loaded number without converting stored values", () => {
+  resetState();
+  const control = { id: "settings" };
+  const setting = {
+    id: "workers", kind: "dropdown", label: "Workers", value: 4,
+    options: [{ id: "4", title: "Four" }, { id: "8", title: "Eight" }],
+  };
+  state.configValues = { "settings.workers": 8 };
+  const html = renderConfigSetting(control, setting, {});
+  assert.match(html, /value="8"\s+selected/);
+  assert.doesNotMatch(html, /value="4"\s+selected/);
+  assert.equal(state.configValues["settings.workers"], 8);
+});
+
 async function waitUntil(predicate) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (predicate()) {

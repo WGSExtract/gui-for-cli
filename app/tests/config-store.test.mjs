@@ -118,5 +118,14 @@ test("typed setting defaults preserve numbers and booleans when bootstrap merges
   assert.deepEqual({ ...parseSavedToml(await readFile(saved.path, "utf8")) }, {
     added: "new", enabled: false, label: "false", ratio: 1.5, workers: 8,
   });
+  await writeFile(saved.path, 'enabled = false\nworkers = 1_000\nratio = 1_0.5_0\nlabel = "1_000"\n');
+  const loaded = await loadConfig(control, undefined, bundleRoot);
+  assert.equal(loaded.values.workers, 1000);
+  assert.equal(loaded.values.ratio, 10.5);
+  assert.equal(loaded.values.label, "1_000");
+  await bootstrapConfigFiles({ pages: [{ sections: [{ controls: [control] }] }] }, bundleRoot, { settings: saved.path });
+  assert.deepEqual({ ...parseSavedToml(await readFile(saved.path, "utf8")) }, {
+    added: "new", enabled: false, label: "1_000", ratio: 10.5, workers: 1000,
+  });
   await assert.rejects(saveConfig(control, undefined, { workers: "invalid" }, bundleRoot), /Invalid number value/);
 });

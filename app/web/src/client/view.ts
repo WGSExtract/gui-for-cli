@@ -339,7 +339,7 @@ export function renderConfigSetting(control: ControlSpec, setting: ConfigSetting
         <span class="row-label">${escapeHTML(setting.label)}${renderTooltip(setting.tooltip)}</span>
         <select ${common}>
           ${options
-            .map((option) => `<option value="${escapeAttribute(option.id)}" ${option.id === value ? "selected" : ""}>${escapeHTML(displayOption(option))}</option>`)
+            .map((option) => `<option value="${escapeAttribute(option.id)}" ${option.id === String(value) ? "selected" : ""}>${escapeHTML(displayOption(option))}</option>`)
             .join("")}
         </select>
       </label>
