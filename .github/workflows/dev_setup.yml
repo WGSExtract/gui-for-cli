@@ -16,7 +16,7 @@ jobs:
   setup:
     name: Setup (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +44,8 @@ jobs:
           sh scripts/dev_setup.sh
           sh scripts/dev_setup.sh --skip-smoke
           "$SHELL" -ic 'uv --version && node --version && npm --version && cargo --version && make precheck'
+          # Compile the real desktop shell on CI, not on the busy developer host.
+          "$SHELL" -ic 'npm --prefix app run tauri:prepare-node && node app/scripts/run-tauri.mjs build --debug --no-bundle'
       - name: Bootstrap with system-only PATH (Windows PowerShell 5.1)
         if: runner.os == 'Windows'
         shell: powershell
@@ -69,6 +71,8 @@ jobs:
         run: |
           $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
           powershell -NoProfile -Command 'uv --version; if ($LASTEXITCODE -ne 0) { exit 1 }; node --version; if ($LASTEXITCODE -ne 0) { exit 1 }; npm.cmd --version; if ($LASTEXITCODE -ne 0) { exit 1 }; cargo --version; if ($LASTEXITCODE -ne 0) { exit 1 }; .\make.ps1 precheck; exit $LASTEXITCODE'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -Command 'npm.cmd --prefix app run tauri:prepare-node; if ($LASTEXITCODE -ne 0) { exit 1 }; node app/scripts/run-tauri.mjs build --debug --no-bundle; exit $LASTEXITCODE'
           exit $LASTEXITCODE
       - name: Upload setup smoke evidence
         if: always()

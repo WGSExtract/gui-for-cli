@@ -23,6 +23,25 @@ REGISTER_SPEC.loader.exec_module(register)
 
 
 class DesktopPrerequisiteTests(unittest.TestCase):
+    def test_missing_desktop_prerequisites_fail_unless_web_only_is_requested(
+        self,
+    ) -> None:
+        for flags, expected in [([], 1), (["--web-only"], 0)]:
+            with (
+                self.subTest(flags=flags),
+                patch.object(sys, "argv", ["dev_setup.py", "--skip-smoke", *flags]),
+                patch.object(
+                    setup,
+                    "desktop_prerequisites",
+                    return_value=["Install system libraries"],
+                ),
+                patch.object(setup, "run"),
+                patch.object(setup, "succeeds", return_value=True),
+                patch.object(setup, "smoke") as smoke,
+            ):
+                self.assertEqual(setup.main(), expected)
+                smoke.assert_not_called()
+
     def test_registration_preserves_local_identity_without_github_or_config_write(
         self,
     ) -> None:

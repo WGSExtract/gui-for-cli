@@ -106,6 +106,6 @@ and give it a bounded request, for example:
 
 Review the diff, try the change yourself, and wait for CI before requesting review.
 The Developer setup CI matrix exercises this setup on fresh Ubuntu, macOS, and
-Windows runners without tool-setup actions, including reruns and a new-shell PATH
-check. Hosted runners supply the OS-level prerequisites; the script itself never
-installs those.
+Windows runners without tool-setup actions, including reruns, a new-shell PATH
+check, and a debug desktop build. Hosted runners supply the OS-level prerequisites;
+the script itself never installs those.
