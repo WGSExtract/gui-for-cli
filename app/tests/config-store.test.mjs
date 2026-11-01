@@ -4,9 +4,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { parseFlatToml } from "../dist/shared/rendering.js";
 
 const { bootstrapConfigFiles, loadBundleState, loadConfig, saveBundleState, saveConfig, takeBundleStateWarning, writeFileAtomically } = await import("../dist/web/src/server/config-store.js");
+const { loadLocalizedBundle } = await import("../dist/web/src/server/bundle-loader.js");
 
 async function tempDirectory(t) {
   const directory = await mkdtemp(path.join(tmpdir(), "gui-for-cli-config-store-"));
@@ -118,6 +120,7 @@ test("typed setting defaults preserve numbers and booleans when bootstrap merges
   assert.deepEqual({ ...parseSavedToml(await readFile(saved.path, "utf8")) }, {
     added: "new", enabled: false, label: "false", ratio: 1.5, workers: 8,
   });
+
   await writeFile(saved.path, 'enabled = false\nworkers = 1_000\nratio = 1_0.5_0\nlabel = "1_000"\n');
   const loaded = await loadConfig(control, undefined, bundleRoot);
   assert.equal(loaded.values.workers, 1000);
@@ -128,4 +131,40 @@ test("typed setting defaults preserve numbers and booleans when bootstrap merges
     added: "new", enabled: false, label: "1_000", ratio: 10.5, workers: 1000,
   });
   await assert.rejects(saveConfig(control, undefined, { workers: "invalid" }, bundleRoot), /Invalid number value/);
+});
+
+test("invalid saved scalars warn and use defaults without blocking bundle load or repairing the file silently", async (t) => {
+  const bundleRoot = await tempDirectory(t);
+  const control = {
+    id: "settings", label: "Settings", kind: "configEditor",
+    configFile: { path: "settings.toml", format: "toml" },
+    settings: [
+      { id: "atomic_outputs", key: "atomic_outputs", label: "Atomic", kind: "toggle", value: false },
+      { id: "workers", key: "workers", label: "Workers", kind: "text", value: 4 },
+      { id: "label", key: "label", label: "Label", kind: "text", value: "default" },
+    ],
+  };
+  await writeFile(path.join(bundleRoot, "manifest.json"), JSON.stringify({
+    id: "invalid-config", displayName: "Invalid config", summary: "Test saved values",
+    pages: [{ id: "settings", title: "Settings", summary: "Test Settings", sections: [{ id: "settings", controls: [control] }] }],
+  }));
+  const invalidToml = 'atomic_outputs = 1\nworkers = "invalid"\nlabel = true\n';
+  await writeFile(path.join(bundleRoot, "settings.toml"), invalidToml);
+  const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+  const bundle = await loadLocalizedBundle("en", repoRoot, bundleRoot, bundleRoot);
+  assert.equal(bundle.configValues["settings.atomic_outputs"], false);
+  assert.equal(bundle.configValues["settings.workers"], 4);
+  assert.equal(bundle.configValues["settings.label"], "default");
+  assert.match(bundle.configWarnings.join("\n"), /Invalid boolean.*atomic_outputs.*declared default/);
+  assert.match(bundle.configWarnings.join("\n"), /Invalid number.*workers.*declared default/);
+  assert.match(bundle.configWarnings.join("\n"), /Invalid string.*label.*declared default/);
+  const loaded = await loadConfig(control, undefined, bundleRoot);
+  assert.deepEqual(loaded.values, { atomic_outputs: false, workers: 4, label: "default" });
+  assert.equal(loaded.warnings.length, 3);
+  assert.equal(await readFile(loaded.path, "utf8"), invalidToml);
+  await assert.rejects(saveConfig(control, undefined, { atomic_outputs: 1 }, bundleRoot), /Invalid boolean/);
+  await writeFile(loaded.path, 'atomic_outputs = "true"\nworkers = "8"\nlabel = "label"\n');
+  const quotedScalars = await loadConfig(control, undefined, bundleRoot);
+  assert.deepEqual(quotedScalars.values, { atomic_outputs: false, workers: 4, label: "label" });
+  assert.equal(quotedScalars.warnings.length, 2);
 });

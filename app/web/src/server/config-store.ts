@@ -402,7 +402,7 @@ async function readOptionalFlatToml(filePath: string): Promise<ValueMap | null> 
         throw error;
     }
 }
-export async function initialConfigValues(manifest: BundleManifest, configFilePaths: StringMap, bundleRoot: string): Promise<ValueMap> {
+export async function initialConfigValues(manifest: BundleManifest, configFilePaths: StringMap, bundleRoot: string, warnings: string[] = []): Promise<ValueMap> {
     const values: ValueMap = Object.fromEntries(configEditorControls(manifest).flatMap((control) => (control.settings ?? []).map((setting) => [`${control.id}.${setting.id}`, setting.value ?? ""])));
     for (const control of configEditorControls(manifest)) {
         const requestedPath = configFilePaths[control.id];
@@ -413,7 +413,7 @@ export async function initialConfigValues(manifest: BundleManifest, configFilePa
             for (const setting of control.settings ?? []) {
                 const fileValue = fileValues[settingKey(setting)];
                 if (fileValue != null) {
-                    values[`${control.id}.${setting.id}`] = typedSettingValue(setting, fileValue);
+                    values[`${control.id}.${setting.id}`] = loadedSettingValue(setting, fileValue, warnings);
                 }
             }
         }
@@ -496,6 +496,7 @@ export function configSettingBindings(manifest: BundleManifest, fieldID: string)
 }
 export async function loadConfig(control: ControlSpec, requestedPath: string | undefined, bundleRoot: string) {
     const filePath = configPath(control, requestedPath, bundleRoot);
+    const warnings: string[] = [];
     let values: ValueMap = {};
     try {
         values = parseFlatToml(await readFile(filePath, "utf8"));
@@ -505,12 +506,14 @@ export async function loadConfig(control: ControlSpec, requestedPath: string | u
             throw error;
         }
     }
+    const loadedValues = Object.fromEntries((control.settings ?? []).map((setting) => [
+            settingKey(setting),
+            loadedSettingValue(setting, values[settingKey(setting)] ?? setting.value ?? "", warnings),
+        ]));
     return {
         path: filePath,
-        values: Object.fromEntries((control.settings ?? []).map((setting) => [
-            settingKey(setting),
-            typedSettingValue(setting, values[settingKey(setting)] ?? setting.value ?? ""),
-        ])),
+        values: loadedValues,
+        warnings,
     };
 }
 export async function saveConfig(control: ControlSpec, requestedPath: string | undefined, values: Readonly<Record<string, unknown>>, bundleRoot: string) {
@@ -530,6 +533,23 @@ export async function saveConfig(control: ControlSpec, requestedPath: string | u
 /** The settings-file key a config setting is stored under (required by the schema). */
 function settingKey(setting: ConfigSetting): string {
     return setting.key ?? setting.id;
+}
+
+function loadedSettingValue(setting: ConfigSetting, value: unknown, warnings: string[]): StateValue {
+    try {
+        const expectedType = setting.kind === "toggle" || typeof setting.value === "boolean"
+            ? "boolean" : typeof setting.value === "number" ? "number" : "string";
+        if (typeof value !== expectedType) {
+            throw new Error(`Invalid ${expectedType} value for setting ${settingKey(setting)}.`);
+        }
+        return typedSettingValue(setting, value);
+    }
+    catch (error) {
+        const warning = `${errorMessage(error)} Ignoring it and using the declared default.`;
+        warnings.push(warning);
+        console.warn(warning);
+        return typedSettingValue(setting, setting.value ?? "");
+    }
 }
 
 function typedSettingValue(setting: ConfigSetting, value: unknown): StateValue {
@@ -552,5 +572,8 @@ function typedSettingValue(setting: ConfigSetting, value: unknown): StateValue {
         }
         return number;
     }
-    return String(value ?? "");
+    if (typeof value !== "string") {
+        throw new Error(`Invalid string value for setting ${settingKey(setting)}.`);
+    }
+    return value;
 }

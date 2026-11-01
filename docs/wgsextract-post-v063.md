@@ -42,6 +42,11 @@ defaults declare numeric settings; path/text defaults remain strings even when
 their text is `false` or `123`. Bootstrap merging preserves scalar TOML types.
 All existing WGSExtract non-toggle settings are strings; the unrelated Annotate
 toggle is stored in GUI JSON state, not the CLI TOML file.
+Wrong-type saved scalars report a warning and use the setting's declared
+default, without preventing bundle/Settings loading or rewriting the file
+on read. Quoted booleans/numbers are not treated as native TOML scalars.
+Save-time validation remains strict; form strings are converted to the
+declared setting type before publication.
 
 ## Release and validation
 
