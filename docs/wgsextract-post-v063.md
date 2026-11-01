@@ -1,7 +1,9 @@
 # WGSExtract: features after CLI v0.6.3
 
-These controls require the forthcoming CLI v0.6.4 bundle. Keep the feature PR
-draft until that release is available; the bundle remains pinned to v0.6.3.
+These controls require CLI v0.6.4 or newer. This feature branch is rebased onto
+the separate v0.6.5 bundle-bump PR, which also fixes fresh Windows installation
+and adds clear warnings for invalid configuration values. Root approves merges
+and app release tags; neither PR should be merged without that approval.
 
 Existing actions and selected microarray formats are unchanged. New selections
 are unchecked or blank: unchecked means inherit CLI/config defaults, not force
@@ -14,12 +16,18 @@ false. All operations remain explicit user actions.
   yBrowse Y-SNP calling (matching indexed GRCh38 only), and unmapped FASTQs.
   Install the pinned GRCh38 yBrowse resource explicitly from Library first.
 - **Microarray:** marker-only MyHeritage GSA and Ancestry layouts; AADR
-  1240K/HO/union PLINK and EIGENSTRAT research exports; optional GQ/DP filtering,
+  1240K/HO/union and opt-in v66.p1 2M PLINK/EIGENSTRAT research exports;
+  optional GQ/DP filtering,
   strand masking, historical rsIDs, absent/filtered no-calls and reason reports.
   AADR sample labels must be non-identifying; sex metadata does not change calls.
   One sequence-defined I/D manifest can be bound to a selected consumer format;
   repeated bindings remain advanced CLI use. CHM13 uses the supported pinned
   reference selected in the existing dropdown, not an invented mode flag.
+  The 2M panel is excluded from `all` and requires explicitly installed metadata
+  from Library's **Install AADR 2M metadata** action. It supports GRCh37/38 only;
+  GRCh38 needs an already-installed forward chain, and CHM13/T2T is rejected.
+  Metadata is checksum-pinned CC0 with Reich Lab/Harvard Dataverse attribution.
+  Extraction never installs it or downloads a missing chain.
 - **BAM Info:** a separate streaming per-chromosome depth-bin action and optional
   retention of FASTQs extracted during realignment.
 - **VCF:** opt-in Ultima flow-mode GATK scattering; it can change genotypes and
@@ -47,8 +55,8 @@ Run `make lint` and `make test`. Renderer tests check unchanged defaults and
 opt-in argument routing; POSIX wrapper tests check argument boundaries and,
 when a CLI interpreter is available, actual argparse compatibility.
 CI conformance rejects post-v0.6.3 controls/actions/formats while the bundled pin
-is older than v0.6.4. Its failure is intentional until the genuine release bump
-lands; never fake the pin or disable the test to make this PR mergeable.
+is older than v0.6.4. The genuine v0.6.5 pin satisfies this gate; never fake the
+pin or disable the test to make this PR mergeable.
 
 After the bundle bump, run the existing hg19 mini baseline plan, then
 `post-v063-mini-opt-in.json` against the same workspace. MultiQC must already be
@@ -63,6 +71,12 @@ mini reference. Verify Windows cancel terminates the tool tree.
 The mini plan scans the bootstrapped `output` directory for FastQC reports;
 its per-action output field does not change FastQC's inherited CLI config.
 MultiQC offers separate file and directory pickers/actions.
+For the 2M panel, explicitly install metadata in Library first, then run
+`aadr-2m-opt-in.json` with command-line `--input bam_path=<real BAM/CRAM/VCF>`
+and `--input ref_fasta=<matching GRCh37/38 FASTA>` overrides. This plan is not
+valid on the scaled mini reference. Check its six PLINK/EIGENSTRAT files and
+the CLI's pinned panel/provenance metadata; the original full-genome baseline
+plan is unchanged.
 
 ARM64 GUI packaging is a separate follow-up: neither Linux ARM64 nor Windows
 ARM64 is currently built in distribution/installer CI. Native Node sidecars are

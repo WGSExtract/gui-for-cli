@@ -18,7 +18,7 @@ function assertWgsExtractReleaseCompatible(tag, pages) {
   const supportsNewFeatures = major > 0 || minor > 6 || (minor === 6 && patch >= 4);
   const newFormats = new Set([
     "myheritage_gsa_2025", "myheritage_gsa_2025_609424", "ancestry_v2_2021", "ancestry_v2_2024",
-    "aadr_1240k", "aadr_ho", "aadr_1240k_ho",
+    "aadr_1240k", "aadr_ho", "aadr_1240k_ho", "aadr_2m",
   ]);
   const newSettings = new Set(["atomic_outputs", "keep_awake", "temp_directory", "log_dir"]);
   const newFlags = new Set([

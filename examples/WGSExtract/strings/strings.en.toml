@@ -478,3 +478,7 @@
 "controls.fastq.post-v063.multiqc-file.label" = "Existing FastQC report file"
 "controls.fastq.post-v063.multiqc-directory.label" = "Existing FastQC report directory"
 "actions.fastq.post-v063.multiqc-directory.title" = "Aggregate report directory"
+"options.microarray.post-v063.aadr-2m.title" = "AADR v66.p1 2M (PLINK + EIGENSTRAT)"
+"sections.microarray.post-v063.aadr-2m.subtitle" = "AADR 2M: install metadata in Library; GRCh37/38 only (GRCh38 needs an installed forward chain). No CHM13; excluded from All."
+"actions.library.post-v063.aadr-2m.title" = "Install AADR 2M metadata"
+"actions.library.post-v063.aadr-2m.tooltip" = "Explicitly download checksum-pinned CC0 AADR v66.p1 2M metadata (Reich Lab/Harvard Dataverse). Extraction never downloads it; GRCh38 also needs its forward chain installed."

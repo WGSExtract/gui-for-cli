@@ -138,6 +138,7 @@
     {
       "id": "microarray-formats",
       "title": "sections.microarray.microarray-formats.title",
+      "subtitle": "sections.microarray.post-v063.aadr-2m.subtitle",
       "iconName": "microarray-grid",
       "textIcon": "▦",
       "controls": [
@@ -248,6 +249,11 @@
             {
               "id": "aadr_1240k_ho",
               "title": "options.microarray.post-v063.aadr-union.title",
+              "group": "AADR"
+            },
+            {
+              "id": "aadr_2m",
+              "title": "options.microarray.post-v063.aadr-2m.title",
               "group": "AADR"
             }
           ]

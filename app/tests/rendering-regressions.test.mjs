@@ -19,7 +19,7 @@ test("hydrates whitespace-only row metadata as empty", () => {
   assert.equal(rows[0].status, undefined);
 });
 
-const wgsPages = ["microarray", "extract", "fastq", "info-bam", "ancestry", "vcf", "settings"]
+const wgsPages = ["microarray", "extract", "fastq", "info-bam", "ancestry", "vcf", "settings", "library"]
   .map((id) => JSON.parse(readFileSync(new URL(`../../examples/WGSExtract/pages/${id}.json`, import.meta.url), "utf8")));
 const wgsManifest = { pages: wgsPages };
 
@@ -57,6 +57,22 @@ test("WGSExtract opt-in policies render flags and preserve manifest paths with s
     microarray_strand_ambiguous: ["no-call"], microarray_resolve_rsids: ["--resolve-rsids"],
     microarray_absent_no_call: ["--no-assume-hom-ref"],
     microarray_exclude_filtered: ["--exclude-filtered"], microarray_call_reasons: ["--call-reasons"],
+  });
+
+  test("WGSExtract AADR 2M extraction and metadata installation remain separate opt-ins", () => {
+    const page = wgsPages.find((item) => item.id === "microarray");
+    const formats = page.sections.flatMap((section) => section.controls ?? [])
+      .find((control) => control.id === "microarray_formats");
+    assert.ok(formats.options.some((option) => option.id === "aadr_2m"), "2M is selectable");
+    assert.deepEqual(wgsCommand("microarray", "microarray-generate", {}, {
+      microarray_formats: ["aadr_2m"],
+    }), [
+      "microarray", "--input", "sample.bam", "--ref", "ref.fa", "--formats", "aadr_2m",
+    ]);
+    assert.deepEqual(wgsCommand("library", "aadr-2m-install", { ref_path: "reference library" }), [
+      "ref", "aadr", "--install", "--ref", "reference library",
+    ]);
+    assert.ok(!wgsCommand("microarray", "microarray-generate").includes("aadr_2m"));
   });
   assert.deepEqual(args.slice(5), [
     "--formats", "aadr_1240k,aadr_1240k_ho,aadr_ho,myheritage_gsa_2025",
