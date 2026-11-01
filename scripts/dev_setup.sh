@@ -5,7 +5,16 @@ cd "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 case "${1:-}" in
     --help|-h) echo "Usage: sh scripts/dev_setup.sh [--skip-smoke] [--web-only]"; exit 0 ;;
 esac
-original_path=$PATH
+tools_changed=false
+finish() {
+    status=$?
+    trap - 0
+    if [ "$tools_changed" = true ]; then
+        echo "Open a new terminal before running make dev (user tools or shell profiles changed)."
+    fi
+    exit "$status"
+}
+trap finish 0
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 mkdir -p tmp/dev-setup "$HOME/.local/bin"
 export TMPDIR="$PWD/tmp/dev-setup"
@@ -25,6 +34,7 @@ esac
 if ! command -v uv >/dev/null 2>&1; then
     curl -fsSL https://astral.sh/uv/install.sh -o tmp/dev-setup/uv-install.sh
     UV_INSTALL_DIR="$HOME/.local/bin" sh tmp/dev-setup/uv-install.sh
+    tools_changed=true
 fi
 if ! command -v node >/dev/null 2>&1 || ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)'; then
     version=24.15.0
@@ -42,20 +52,20 @@ if ! command -v node >/dev/null 2>&1 || ! node -e 'process.exit(Number(process.v
     for tool in node npm npx; do
         ln -sf "$node_root/node-v$version-$os-$arch/bin/$tool" "$HOME/.local/bin/$tool"
     done
+    tools_changed=true
 fi
 if ! command -v cargo >/dev/null 2>&1; then
     curl -fsSL https://sh.rustup.rs -o tmp/dev-setup/rustup-init.sh
     sh tmp/dev-setup/rustup-init.sh -y --profile minimal
+    tools_changed=true
 fi
 # Persist Node's bin directory for new login and interactive shells.
 path_line='export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
 for profile in "$HOME/.profile" "$HOME/.bashrc" "$HOME/.zshrc"; do
     if ! grep -F "$path_line" "$profile" >/dev/null 2>&1; then
         printf '\n# GUI for CLI developer tools\n%s\n' "$path_line" >> "$profile"
+        tools_changed=true
     fi
 done
 uv sync --locked
 uv run --locked python scripts/dev_setup.py "$@"
-if [ "$original_path" != "$PATH" ]; then
-    echo "Open a new terminal before running make dev (setup added user tool paths)."
-fi

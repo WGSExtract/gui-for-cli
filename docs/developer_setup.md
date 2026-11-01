@@ -36,6 +36,12 @@ powershell -ExecutionPolicy Bypass -File .\make.ps1 setup
 
 Safe to rerun. Open a **new terminal** if prompted: setup persists user tool
 directories for future terminals, but cannot change its parent's PATH.
+The notice appears only when tools or persisted shell/PATH settings changed,
+including when setup later fails on a missing system prerequisite.
+On Windows, a pre-existing machine-wide Node can shadow the user-installed Node
+in a new terminal. Setup warns if that Node is older: remove or upgrade it, or
+reorder PATH so the printed setup directory comes first. The warning includes a
+session-only PATH command; setup never changes the machine PATH or execution policy.
 Downloads/installers are from the tools' official HTTPS endpoints; review the
 scripts before running if your organization requires approval.
 
@@ -87,7 +93,19 @@ git push -u origin my-change
 gh pr create --fill
 ```
 
-Windows: replace each `make <target>` with `.\make.ps1 <target>`.
+Windows: replace each `make <target>` with
+`powershell -ExecutionPolicy Bypass -File .\make.ps1 <target>`.
+For example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\make.ps1 dev BUNDLE=examples/GitHelper
+powershell -ExecutionPolicy Bypass -File .\make.ps1 lint
+powershell -ExecutionPolicy Bypass -File .\make.ps1 test
+```
+
+`dev` runs the TypeScript watcher and reloadable server on all three platforms.
+Use Ctrl-C to stop both. The process-scoped execution-policy bypass is required
+on fresh Windows clients where the default policy is Restricted.
 For a fork, push to your fork and open a PR against `theontho/gui-for-cli`.
 Hooks check identity/lint on commit and tests on push. Run `make build-tauri`
 after changing the Tauri shell or packaging. `make tauri` runs the desktop UI.

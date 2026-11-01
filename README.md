@@ -42,7 +42,8 @@ make run        # serve the Web UI at http://127.0.0.1:8787 with examples/WGSExt
 make tauri      # run the desktop app in dev mode
 ```
 
-On Windows, use `.\make.ps1 <target>` with the same target names.
+On Windows, use `powershell -ExecutionPolicy Bypass -File .\make.ps1 <target>`
+with the same target names; no machine execution-policy change is needed.
 
 `make run` and `make dev` take `BUNDLE=<path>` and `PORT=<port>`:
 

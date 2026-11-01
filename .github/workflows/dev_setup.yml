@@ -41,9 +41,14 @@ jobs:
           done
           export HOME="$PWD/tmp/fresh-home"
           export PATH="$PWD/tmp/bootstrap-bin"
-          sh scripts/dev_setup.sh
-          sh scripts/dev_setup.sh --skip-smoke
+          sh scripts/dev_setup.sh > tmp/dev-setup/first.log 2>&1
+          cat tmp/dev-setup/first.log
+          grep -q "Open a new terminal" tmp/dev-setup/first.log
+          sh scripts/dev_setup.sh --skip-smoke > tmp/dev-setup/rerun.log 2>&1
+          cat tmp/dev-setup/rerun.log
+          if grep -q "Open a new terminal" tmp/dev-setup/rerun.log; then exit 1; fi
           "$SHELL" -ic 'uv --version && node --version && npm --version && cargo --version && make precheck'
+          "$SHELL" -ic 'uv run --locked python scripts/smoke-dev.py'
           # Compile the real desktop shell on CI, not on the busy developer host.
           "$SHELL" -ic 'npm --prefix app run tauri:prepare-node && node app/scripts/run-tauri.mjs build --debug --no-bundle'
       - name: Bootstrap with system-only PATH (Windows PowerShell 5.1)
@@ -61,16 +66,54 @@ jobs:
             }
           }
           $env:Path = "$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0;C:\Program Files\Git\cmd"
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup > tmp\dev-setup\first.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup -SkipSmoke
+          Get-Content tmp\dev-setup\first.log
+          if (-not (Select-String -Quiet "Open a new terminal" tmp\dev-setup\first.log)) { throw "First setup omitted new-terminal notice." }
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup -SkipSmoke > tmp\dev-setup\rerun.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content tmp\dev-setup\rerun.log
+          if (Select-String -Quiet "Open a new terminal" tmp\dev-setup\rerun.log) { throw "Unchanged rerun printed new-terminal notice." }
           exit $LASTEXITCODE
+      - name: Notice survives a Windows project-setup failure
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $nodeRoot = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "gui-for-cli\node"
+          $oldUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+          try {
+            # A changed user PATH followed by a simulated uv run failure; no machine changes.
+            [Environment]::SetEnvironmentVariable("Path", (($oldUserPath -split ";" | Where-Object { $_ -ne $nodeRoot }) -join ";"), "User")
+            function global:uv {
+              if ($args[0] -eq "run") { $global:LASTEXITCODE = 23 }
+              else { & uv.exe @args }
+            }
+            $failed = $false
+            try { . .\scripts\dev_setup.ps1 -SkipSmoke 6> tmp\dev-setup\failure.log }
+            catch { $failed = $true }
+            if (-not $failed) { throw "Expected simulated project-setup failure." }
+            if (-not (Select-String -Quiet "Open a new terminal" tmp\dev-setup\failure.log)) { throw "Failure omitted new-terminal notice." }
+          } finally {
+            Remove-Item Function:\uv -ErrorAction SilentlyContinue
+            [Environment]::SetEnvironmentVariable("Path", $oldUserPath, "User")
+          }
+          exit 0
       - name: Check persisted PATH in a new Windows shell
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
-          powershell -NoProfile -Command 'uv --version; if ($LASTEXITCODE -ne 0) { exit 1 }; node --version; if ($LASTEXITCODE -ne 0) { exit 1 }; npm.cmd --version; if ($LASTEXITCODE -ne 0) { exit 1 }; cargo --version; if ($LASTEXITCODE -ne 0) { exit 1 }; .\make.ps1 precheck; exit $LASTEXITCODE'
+          $nodeRoot = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "gui-for-cli\node"
+          $winner = Get-Command node.exe
+          $needsWarning = ([version]((& $winner.Source --version).TrimStart("v"))) -lt ([version]((& "$nodeRoot\node.exe" --version).TrimStart("v")))
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup -SkipSmoke > tmp\dev-setup\new-shell-rerun.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($needsWarning -and -not (Select-String -Quiet "New-terminal PATH conflict" tmp\dev-setup\new-shell-rerun.log)) { throw "Older machine Node was silently preferred." }
+          # Apply the documented session-only fix, then launch a genuinely new shell.
+          $env:Path = "$nodeRoot;$env:Path"
+          powershell -NoProfile -Command '$root = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "gui-for-cli\node"; if (-not (Get-Command node).Source.StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase)) { throw "Hosted Node shadowed setup Node." }; uv --version; if ($LASTEXITCODE -ne 0) { exit 1 }; node --version; if ($LASTEXITCODE -ne 0) { exit 1 }; npm.cmd --version; if ($LASTEXITCODE -ne 0) { exit 1 }; cargo --version; if ($LASTEXITCODE -ne 0) { exit 1 }; powershell -ExecutionPolicy Bypass -File .\make.ps1 precheck; exit $LASTEXITCODE'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -Command 'uv run --locked python scripts/smoke-dev.py; exit $LASTEXITCODE'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell -NoProfile -Command 'npm.cmd --prefix app run tauri:prepare-node; if ($LASTEXITCODE -ne 0) { exit 1 }; node app/scripts/run-tauri.mjs build --debug --no-bundle; exit $LASTEXITCODE'
           exit $LASTEXITCODE
@@ -79,5 +122,5 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: setup-${{ matrix.os }}
-          path: tmp/dev-setup/smoke.log
+          path: tmp/dev-setup/*.log
           if-no-files-found: ignore

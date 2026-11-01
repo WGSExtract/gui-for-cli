@@ -7,6 +7,7 @@ import argparse
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -94,14 +95,17 @@ def desktop_prerequisites() -> list[str]:
     return []
 
 
-def smoke() -> None:
+def smoke(command: list[str] | None = None) -> None:
     """Exercise the actual server over HTTP, using an ephemeral loopback port."""
-    run("npm", "--prefix", "app", "run", "build")
-    log_path = ROOT / "tmp/dev-setup/smoke.log"
+    if command is None:
+        run("npm", "--prefix", "app", "run", "build")
+    log_path = ROOT / "tmp/dev-setup" / ("dev-smoke.log" if command else "smoke.log")
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    smoke_url: str | None = None
     with log_path.open("w", encoding="utf-8") as log:
         process = subprocess.Popen(
-            [
+            command
+            or [
                 shutil.which("node") or "node",
                 "app/dist/web/src/server/main.js",
                 "--bundle",
@@ -111,6 +115,7 @@ def smoke() -> None:
             ],
             stdout=log,
             stderr=subprocess.STDOUT,
+            start_new_session=sys.platform != "win32",
         )
         try:
             deadline = time.monotonic() + 45
@@ -130,18 +135,44 @@ def smoke() -> None:
                                 print(
                                     "Smoke passed: GitHelper Web UI returned HTTP 200."
                                 )
+                                smoke_url = match[1]
                                 return
                     except (urllib.error.URLError, TimeoutError):
                         pass
                 time.sleep(0.2)
             raise RuntimeError(f"Server did not become ready:\n{log_path.read_text()}")
         finally:
-            process.terminate()
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["taskkill.exe", "/PID", str(process.pid), "/T", "/F"],
+                    capture_output=True,
+                    check=False,
+                )
+            else:
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                process.kill()
+                if sys.platform != "win32":
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()
                 process.wait()
+            if smoke_url:
+                deadline = time.monotonic() + 5
+                while time.monotonic() < deadline:
+                    try:
+                        urllib.request.urlopen(smoke_url, timeout=1).close()
+                    except (urllib.error.URLError, TimeoutError):
+                        break
+                    time.sleep(0.1)
+                else:
+                    raise RuntimeError(
+                        "Development server remained alive after cleanup."
+                    )
 
 
 def main() -> int:
@@ -208,7 +239,7 @@ def main() -> int:
         return 1
     print(
         "Developer setup complete. Next: make dev BUNDLE=examples/GitHelper "
-        "(Windows: .\\make.ps1 dev BUNDLE=examples/GitHelper)."
+        "(Windows: powershell -ExecutionPolicy Bypass -File .\\make.ps1 dev BUNDLE=examples/GitHelper)."
     )
     return 0
 

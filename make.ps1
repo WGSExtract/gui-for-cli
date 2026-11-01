@@ -10,7 +10,7 @@ Set-Location $PSScriptRoot
 
 function Show-Help {
     @"
-Usage: .\make.ps1 <target> [NAME=value ...]
+Usage: powershell -ExecutionPolicy Bypass -File .\make.ps1 <target> [NAME=value ...]
 
   setup              Bootstrap user tools, locked dependencies/hooks, and smoke test.
                      Optional: -SkipSmoke -WebOnly
@@ -36,7 +36,7 @@ function Invoke-PythonTool {
     $nodeRoot = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "gui-for-cli\node"
     $env:Path = "$homeDirectory\.local\bin;$homeDirectory\.cargo\bin;$nodeRoot;$env:Path"
     if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-        throw "Run .\make.ps1 setup first (uv is missing)."
+        throw "Run powershell -ExecutionPolicy Bypass -File .\make.ps1 setup first (uv is missing)."
     }
     foreach ($item in $RunnerArgs) {
         if ($item -match "^(?<name>[A-Za-z_][A-Za-z0-9_]*)=(?<value>.*)$") {
