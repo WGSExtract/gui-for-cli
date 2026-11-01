@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$env:PYTHONIOENCODING = "utf-8"
 Set-Location $PSScriptRoot
 
 function Show-Help {

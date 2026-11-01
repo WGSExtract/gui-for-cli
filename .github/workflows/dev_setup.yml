@@ -31,6 +31,7 @@ jobs:
       - name: Bootstrap with no user tools on PATH (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
+          hosted_node=$(command -v node || true)
           mkdir -p tmp/bootstrap-bin tmp/fresh-home tmp/dev-setup
           # A fresh user and system-only PATH: do not accidentally test hosted Node/Rust/uv.
           for file in /usr/bin/* /bin/*; do
@@ -49,6 +50,10 @@ jobs:
           if grep -q "Open a new terminal" tmp/dev-setup/rerun.log; then exit 1; fi
           "$SHELL" -ic 'uv --version && node --version && npm --version && cargo --version && make precheck'
           "$SHELL" -ic 'uv run --locked python scripts/smoke-dev.py'
+          if [ -n "$hosted_node" ]; then
+            "$hosted_node" --version
+            "$SHELL" -ic 'uv run --locked python scripts/smoke-dev.py --node "$1"' _ "$hosted_node"
+          fi
           # Compile the real desktop shell on CI, not on the busy developer host.
           "$SHELL" -ic 'npm --prefix app run tauri:prepare-node && node app/scripts/run-tauri.mjs build --debug --no-bundle'
       - name: Bootstrap with system-only PATH (Windows PowerShell 5.1)

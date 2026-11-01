@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import mock_open, patch
@@ -23,6 +24,43 @@ REGISTER_SPEC.loader.exec_module(register)
 
 
 class DesktopPrerequisiteTests(unittest.TestCase):
+    def test_windows_sdk_needs_um_and_ucrt_from_the_same_version(self) -> None:
+        (setup.ROOT / "tmp").mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=setup.ROOT / "tmp") as directory:
+            root = Path(directory)
+            kernel = root / "10.0.1/um/x64/kernel32.lib"
+            other_ucrt = root / "10.0.2/ucrt/x64/ucrt.lib"
+            for library in (kernel, other_ucrt):
+                library.parent.mkdir(parents=True)
+                library.touch()
+            self.assertFalse(setup.windows_sdk_installed(root, "x64"))
+            ucrt = root / "10.0.1/ucrt/x64/ucrt.lib"
+            ucrt.parent.mkdir(parents=True)
+            ucrt.touch()
+            self.assertTrue(setup.windows_sdk_installed(root, "x64"))
+            self.assertFalse(setup.windows_sdk_installed(root, "arm64"))
+
+    def test_loopback_smoke_does_not_use_the_users_http_proxy(self) -> None:
+        node = setup.shutil.which("node")
+        if not node:
+            self.skipTest("Node is required for the smoke probe")
+        source = (
+            'const http = require("node:http");'
+            'const server = http.createServer((req, res) => res.end("<html>probe</html>"));'
+            'server.listen(0, "127.0.0.1", () => console.log('
+            '"Web UI: http://127.0.0.1:" + server.address().port + "/"));'
+        )
+        with patch.dict(
+            setup.os.environ,
+            {
+                "http_proxy": "http://127.0.0.1:1",
+                "HTTP_PROXY": "http://127.0.0.1:1",
+                "no_proxy": "",
+                "NO_PROXY": "",
+            },
+        ):
+            setup.smoke([node, "-e", source])
+
     def test_missing_desktop_prerequisites_fail_unless_web_only_is_requested(
         self,
     ) -> None:

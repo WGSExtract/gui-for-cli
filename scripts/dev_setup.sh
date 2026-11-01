@@ -61,7 +61,10 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 # Persist Node's bin directory for new login and interactive shells.
 path_line='export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
-for profile in "$HOME/.profile" "$HOME/.bashrc" "$HOME/.zshrc"; do
+login_profile="$HOME/.profile"
+if [ -f "$HOME/.bash_profile" ]; then login_profile="$HOME/.bash_profile"
+elif [ -f "$HOME/.bash_login" ]; then login_profile="$HOME/.bash_login"; fi
+for profile in "$HOME/.profile" "$HOME/.bashrc" "$HOME/.zshrc" "$login_profile"; do
     if ! grep -F "$path_line" "$profile" >/dev/null 2>&1; then
         printf '\n# GUI for CLI developer tools\n%s\n' "$path_line" >> "$profile"
         tools_changed=true

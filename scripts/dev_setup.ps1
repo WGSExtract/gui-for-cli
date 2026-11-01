@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$env:PYTHONIOENCODING = "utf-8"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Set-Location (Split-Path $PSScriptRoot -Parent)
 New-Item -ItemType Directory -Force "tmp\dev-setup" | Out-Null

@@ -52,7 +52,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     "--watch", "--preserveWatchOutput",
   ], { cwd: appRoot, stdio: "inherit" });
   const server = spawn(process.execPath, [
-    "--watch", "--watch-path=dist/web/src/server",
+    "--watch", ...(process.platform === "linux" ? [] : ["--watch-path=dist/web/src/server"]),
     "dist/web/src/server/main.js", ...process.argv.slice(2),
   ], { cwd: appRoot, stdio: "inherit", env: { ...process.env, WEBUI_DEV_RELOAD: "1" } });
   process.exitCode = await supervise([compiler, server]).done;

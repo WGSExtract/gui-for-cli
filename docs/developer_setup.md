@@ -42,6 +42,7 @@ On Windows, a pre-existing machine-wide Node can shadow the user-installed Node
 in a new terminal. Setup warns if that Node is older: remove or upgrade it, or
 reorder PATH so the printed setup directory comes first. The warning includes a
 session-only PATH command; setup never changes the machine PATH or execution policy.
+Existing Bash login profiles (`.bash_profile` / `.bash_login`) are updated too.
 Downloads/installers are from the tools' official HTTPS endpoints; review the
 scripts before running if your organization requires approval.
 
@@ -68,6 +69,7 @@ SHA-256 tool (`sha256sum` or macOS `shasum`).
   with **Desktop development with C++** and a Windows 10/11 SDK, and
   [WebView2 Evergreen Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
   (normally included with Windows 11). These may require an administrator.
+  Setup checks SDK UM/UCRT libraries separately from the C++ compiler component.
 
 The script detects missing desktop prerequisites and prints installation
 instructions; see also the [Tauri prerequisite guide](https://v2.tauri.app/start/prerequisites/).

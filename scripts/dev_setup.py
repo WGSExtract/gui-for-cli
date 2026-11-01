@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import platform
 import re
 import shutil
 import signal
@@ -16,6 +17,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+LOOPBACK_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def run(*args: str) -> None:
@@ -31,6 +33,13 @@ def succeeds(*args: str) -> bool:
             [executable, *args[1:]], capture_output=True, check=False
         ).returncode
         == 0
+    )
+
+
+def windows_sdk_installed(root: Path, arch: str) -> bool:
+    return any(
+        (library.parents[2] / "ucrt" / arch / "ucrt.lib").is_file()
+        for library in root.glob(f"*/um/{arch}/kernel32.lib")
     )
 
 
@@ -80,6 +89,16 @@ def desktop_prerequisites() -> list[str]:
                 "'Desktop development with C++' and a Windows 10/11 SDK: "
                 "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
             ]
+        kits = (
+            Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)"))
+            / "Windows Kits/10/Lib"
+        )
+        arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
+        if not windows_sdk_installed(kits, arch):
+            return [
+                "Windows: use Visual Studio Installer > Modify > Individual components "
+                "to install a Windows 10/11 SDK (both UM and UCRT libraries are required)."
+            ]
         # WebView2 is a runtime, not an SDK; Windows 11 normally includes it.
         roots = (
             Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")),
@@ -127,7 +146,7 @@ def smoke(command: list[str] | None = None) -> None:
                 )
                 if match:
                     try:
-                        with urllib.request.urlopen(match[1], timeout=5) as response:
+                        with LOOPBACK_OPENER.open(match[1], timeout=5) as response:
                             if (
                                 response.status == 200
                                 and b"<html" in response.read().lower()
@@ -165,7 +184,7 @@ def smoke(command: list[str] | None = None) -> None:
                 deadline = time.monotonic() + 5
                 while time.monotonic() < deadline:
                     try:
-                        urllib.request.urlopen(smoke_url, timeout=1).close()
+                        LOOPBACK_OPENER.open(smoke_url, timeout=1).close()
                     except (urllib.error.URLError, TimeoutError):
                         break
                     time.sleep(0.1)

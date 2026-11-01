@@ -26,7 +26,7 @@ class PrePushTests(unittest.TestCase):
     def test_test_runner_can_initialize_a_different_repository(self) -> None:
         (ROOT / "tmp").mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(
-            prefix="hook-test-", dir=ROOT / "tmp"
+            prefix="hook test-", dir=ROOT / "tmp"
         ) as directory:
             root = Path(directory)
             subprocess.run(["git", "init", str(root)], capture_output=True, check=True)
@@ -49,7 +49,8 @@ class PrePushTests(unittest.TestCase):
                 env={
                     **os.environ,
                     "GIT_DIR": str(root / ".git"),
-                    "PYTHON": str(runner),
+                    "PYTHON": runner.name,
+                    "PATH": f"{root}{os.pathsep}{os.environ.get('PATH', '')}",
                     "PROBE": str(probe),
                 },
                 capture_output=True,
