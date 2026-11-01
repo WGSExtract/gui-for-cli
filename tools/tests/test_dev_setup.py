@@ -40,11 +40,12 @@ class DesktopPrerequisiteTests(unittest.TestCase):
             self.assertTrue(setup.windows_sdk_installed(root, "x64"))
             self.assertFalse(setup.windows_sdk_installed(root, "arm64"))
 
-    def test_loopback_smoke_does_not_use_the_users_http_proxy(self) -> None:
+    def test_loopback_smoke_uses_latest_port_without_the_users_http_proxy(self) -> None:
         node = setup.shutil.which("node")
         if not node:
             self.skipTest("Node is required for the smoke probe")
         source = (
+            'console.log("Web UI: http://127.0.0.1:0/");'
             'const http = require("node:http");'
             'const server = http.createServer((req, res) => res.end("<html>probe</html>"));'
             'server.listen(0, "127.0.0.1", () => console.log('

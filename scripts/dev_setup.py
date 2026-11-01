@@ -141,12 +141,13 @@ def smoke(command: list[str] | None = None) -> None:
             while time.monotonic() < deadline:
                 if process.poll() is not None:
                     raise RuntimeError(f"Server exited:\n{log_path.read_text()}")
-                match = re.search(
+                urls = re.findall(
                     r"Web UI: (http://127\.0\.0\.1:\d+/)", log_path.read_text()
                 )
-                if match:
+                if urls:
+                    url = urls[-1]
                     try:
-                        with LOOPBACK_OPENER.open(match[1], timeout=5) as response:
+                        with LOOPBACK_OPENER.open(url, timeout=5) as response:
                             if (
                                 response.status == 200
                                 and b"<html" in response.read().lower()
@@ -154,7 +155,7 @@ def smoke(command: list[str] | None = None) -> None:
                                 print(
                                     "Smoke passed: GitHelper Web UI returned HTTP 200."
                                 )
-                                smoke_url = match[1]
+                                smoke_url = url
                                 return
                     except (urllib.error.URLError, TimeoutError):
                         pass
