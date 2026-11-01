@@ -15,8 +15,8 @@ help: ## Show available targets.
 	@awk 'BEGIN {FS = ":.*##"} /^##@/ {printf "\n%s\n", substr($$0, 5)} /^[a-zA-Z_-]+:.*##/ {printf "  %-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf '\n%s\n' 'Set BUNDLE=<path> and PORT=<port> for run/dev. Windows: use .\make.ps1 <target>.'
 
-setup: ## Install npm dependencies, register the dev identity, install git hooks.
-	$(TASKS) setup
+setup: ## Bootstrap user tools, install locked dependencies/hooks, verify and smoke test.
+	sh scripts/dev_setup.sh
 
 precheck: ## Check the local development environment.
 	$(TASKS) precheck

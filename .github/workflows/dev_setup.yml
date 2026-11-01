@@ -1,0 +1,79 @@
+name: Developer setup
+
+on:
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Setup (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Supply Linux system prerequisites (administrator step, not setup)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Bootstrap with no user tools on PATH (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p tmp/bootstrap-bin tmp/fresh-home tmp/dev-setup
+          # A fresh user and system-only PATH: do not accidentally test hosted Node/Rust/uv.
+          for file in /usr/bin/* /bin/*; do
+            [ -f "$file" ] || continue
+            name=${file##*/}
+            case "$name" in node|nodejs|npm|npx|uv|uvx|cargo|rustc|rustup|python*) continue ;; esac
+            ln -sfn "$file" "tmp/bootstrap-bin/$name"
+          done
+          export HOME="$PWD/tmp/fresh-home"
+          export PATH="$PWD/tmp/bootstrap-bin"
+          sh scripts/dev_setup.sh
+          sh scripts/dev_setup.sh --skip-smoke
+          "$SHELL" -ic 'uv --version && node --version && npm --version && cargo --version && make precheck'
+      - name: Bootstrap with system-only PATH (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force tmp\dev-setup | Out-Null
+          # Remove hosted user tools from discovery; this is a disposable runner.
+          $homeDirectory = [Environment]::GetFolderPath("UserProfile")
+          foreach ($directory in @(".cargo", ".rustup", ".local\bin")) {
+            $source = Join-Path $homeDirectory $directory
+            if (Test-Path $source) {
+              $destination = Join-Path $PWD ("tmp\dev-setup\hosted-" + $directory.Replace("\", "-").TrimStart("."))
+              Move-Item $source $destination
+            }
+          }
+          $env:Path = "$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0;C:\Program Files\Git\cmd"
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup -SkipSmoke
+          exit $LASTEXITCODE
+      - name: Check persisted PATH in a new Windows shell
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+          powershell -NoProfile -Command 'uv --version; if ($LASTEXITCODE -ne 0) { exit 1 }; node --version; if ($LASTEXITCODE -ne 0) { exit 1 }; npm.cmd --version; if ($LASTEXITCODE -ne 0) { exit 1 }; cargo --version; if ($LASTEXITCODE -ne 0) { exit 1 }; .\make.ps1 precheck; exit $LASTEXITCODE'
+          exit $LASTEXITCODE
+      - name: Upload setup smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: setup-${{ matrix.os }}
+          path: tmp/dev-setup/smoke.log
+          if-no-files-found: ignore
