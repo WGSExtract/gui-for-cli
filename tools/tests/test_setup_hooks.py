@@ -24,6 +24,7 @@ class PrePushTests(unittest.TestCase):
         os.name == "nt" or not shutil.which("sh"), "POSIX hook environment"
     )
     def test_test_runner_can_initialize_a_different_repository(self) -> None:
+        (ROOT / "tmp").mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(
             prefix="hook-test-", dir=ROOT / "tmp"
         ) as directory:
