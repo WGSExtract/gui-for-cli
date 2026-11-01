@@ -204,7 +204,7 @@ export function renderDropdownControl(control: ControlSpec) {
       <span class="row-label">${escapeHTML(control.label)}${renderTooltip(control.tooltip)}</span>
       <select data-field-id="${escapeAttribute(control.id)}">
         ${(control.options ?? [])
-        .map((option) => `<option value="${escapeAttribute(option.id)}" ${option.id === value ? "selected" : ""}>${escapeHTML(displayOption(option))}</option>`)
+        .map((option) => `<option value="${escapeAttribute(option.id)}" ${option.id === String(value) ? "selected" : ""}>${escapeHTML(displayOption(option))}</option>`)
         .join("")}
       </select>
     </label>

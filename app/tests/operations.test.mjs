@@ -16,7 +16,7 @@ globalThis.document = {
 
 const { createInitialState, state } = await import("../dist/web/src/client/state.js");
 const { ensureDataSource, openBundleWorkspace, retryDataSource, runAction, runSetup } = await import("../dist/web/src/client/operations.js");
-const { renderConfigSetting } = await import("../dist/web/src/client/view.js");
+const { renderConfigSetting, renderDropdownControl } = await import("../dist/web/src/client/view.js");
 
 function resetState() {
   Object.assign(state, createInitialState(), {
@@ -60,6 +60,10 @@ test("Settings numeric dropdowns select the loaded number without converting sto
   assert.match(html, /value="8"\s+selected/);
   assert.doesNotMatch(html, /value="4"\s+selected/);
   assert.equal(state.configValues["settings.workers"], 8);
+  state.fieldValues.workers = 8;
+  const boundDropdown = renderDropdownControl({ id: "workers", label: "Workers", options: setting.options });
+  assert.match(boundDropdown, /value="8"\s+selected/);
+  assert.equal(state.fieldValues.workers, 8);
 });
 
 async function waitUntil(predicate) {
