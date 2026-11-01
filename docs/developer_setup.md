@@ -36,8 +36,9 @@ powershell -ExecutionPolicy Bypass -File .\make.ps1 setup
 
 Safe to rerun. Open a **new terminal** if prompted: setup persists user tool
 directories for future terminals, but cannot change its parent's PATH.
-The notice appears only when tools or persisted shell/PATH settings changed,
-including when setup later fails on a missing system prerequisite.
+The notice appears when tools or persisted shell/PATH settings changed, or the
+invoking terminal cannot find uv, Node, or Cargo. This includes an unchanged rerun
+in the same terminal after installing a missing system prerequisite.
 On Windows, a pre-existing machine-wide Node can shadow the user-installed Node
 in a new terminal. Setup warns if that Node is older: remove or upgrade it, or
 reorder PATH so the printed setup directory comes first. The warning includes a

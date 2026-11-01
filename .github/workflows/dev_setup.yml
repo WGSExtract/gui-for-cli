@@ -47,7 +47,8 @@ jobs:
           grep -q "Open a new terminal" tmp/dev-setup/first.log
           sh scripts/dev_setup.sh --skip-smoke > tmp/dev-setup/rerun.log 2>&1
           cat tmp/dev-setup/rerun.log
-          if grep -q "Open a new terminal" tmp/dev-setup/rerun.log; then exit 1; fi
+          grep -q "Open a new terminal" tmp/dev-setup/rerun.log
+          "$SHELL" -ic 'sh scripts/dev_setup.sh --skip-smoke > tmp/dev-setup/new-shell-rerun.log 2>&1 && ! grep -q "Open a new terminal" tmp/dev-setup/new-shell-rerun.log'
           "$SHELL" -ic 'uv --version && node --version && npm --version && cargo --version && make precheck'
           "$SHELL" -ic 'uv run --locked python scripts/smoke-dev.py'
           if [ -n "$hosted_node" ]; then
@@ -78,7 +79,7 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup -SkipSmoke > tmp\dev-setup\rerun.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-Content tmp\dev-setup\rerun.log
-          if (Select-String -Quiet "Open a new terminal" tmp\dev-setup\rerun.log) { throw "Unchanged rerun printed new-terminal notice." }
+          if (-not (Select-String -Quiet "Open a new terminal" tmp\dev-setup\rerun.log)) { throw "Tool-free rerun omitted new-terminal notice." }
           exit $LASTEXITCODE
       - name: Notice survives a Windows project-setup failure
         if: runner.os == 'Windows'
@@ -113,6 +114,7 @@ jobs:
           $needsWarning = ([version]((& $winner.Source --version).TrimStart("v"))) -lt ([version]((& "$nodeRoot\node.exe" --version).TrimStart("v")))
           powershell -NoProfile -ExecutionPolicy Bypass -File .\make.ps1 setup -SkipSmoke > tmp\dev-setup\new-shell-rerun.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Quiet "Open a new terminal" tmp\dev-setup\new-shell-rerun.log) { throw "Tool-ready rerun printed new-terminal notice." }
           if ($needsWarning -and -not (Select-String -Quiet "New-terminal PATH conflict" tmp\dev-setup\new-shell-rerun.log)) { throw "Older machine Node was silently preferred." }
           # Apply the documented session-only fix, then launch a genuinely new shell.
           $env:Path = "$nodeRoot;$env:Path"

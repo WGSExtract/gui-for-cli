@@ -14,6 +14,7 @@ $Script:ToolsChanged = $false
 $userBin = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".local\bin"
 $cargoBin = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".cargo\bin"
 $nodeRoot = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "gui-for-cli\node"
+$originalPath = $env:Path
 $env:Path = "$userBin;$cargoBin;$nodeRoot;$env:Path"
 
 function Invoke-Checked {
@@ -82,6 +83,19 @@ if ($WebOnly) { $arguments += "--web-only" }
 Invoke-Checked "uv" $arguments
 }
 
+function Test-InvokingToolPaths {
+    $currentPath = $env:Path
+    try {
+        $env:Path = $originalPath
+        foreach ($tool in @("uv", "node", "cargo")) {
+            if (-not (Get-Command $tool -CommandType Application -ErrorAction SilentlyContinue)) {
+                return $false
+            }
+        }
+        return $true
+    } finally { $env:Path = $currentPath }
+}
+
 function Show-NodePathWarning {
     if (-not (Test-Path (Join-Path $nodeRoot "node.exe"))) { return }
     $installedVersion = [version]((& (Join-Path $nodeRoot "node.exe") --version).TrimStart("v"))
@@ -101,8 +115,8 @@ function Show-NodePathWarning {
 try {
     Invoke-Setup
 } finally {
-    if ($Script:ToolsChanged) {
-        Write-Host "Open a new terminal before running powershell -ExecutionPolicy Bypass -File .\make.ps1 dev (user tools or persisted PATH changed)."
+    if ($Script:ToolsChanged -or -not (Test-InvokingToolPaths)) {
+        Write-Host "Open a new terminal before running powershell -ExecutionPolicy Bypass -File .\make.ps1 dev (setup changed tools/PATH, or required tools are missing from the invoking PATH)."
     }
     Show-NodePathWarning
 }

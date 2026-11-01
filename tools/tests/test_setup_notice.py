@@ -14,16 +14,28 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @unittest.skipIf(os.name == "nt", "POSIX setup")
 class SetupNoticeTests(unittest.TestCase):
-    def test_notice_only_on_changes_and_also_after_failure(self) -> None:
+    def test_notice_tracks_invoking_path_after_success_or_failure(self) -> None:
         (ROOT / "tmp").mkdir(exist_ok=True)
-        for failing in (False, True):
+        for has_tools, failing in (
+            (False, False),
+            (False, True),
+            (True, False),
+            (True, True),
+        ):
             with (
-                self.subTest(failing=failing),
+                self.subTest(has_tools=has_tools, failing=failing),
                 tempfile.TemporaryDirectory(
                     prefix="setup-notice-", dir=ROOT / "tmp"
                 ) as directory,
             ):
                 home = Path(directory)
+                system_bin = home / "bin"
+                system_bin.mkdir()
+                for tool in ("git", "curl", "tar", "mkdir", "dirname", "uname", "grep"):
+                    executable = shutil.which(tool)
+                    self.assertIsNotNone(executable, f"{tool} is required for setup")
+                    assert executable
+                    (system_bin / tool).symlink_to(executable)
                 tools = home / ".local/bin"
                 tools.mkdir(parents=True)
                 login_profile = home / ".bash_profile"
@@ -40,7 +52,13 @@ class SetupNoticeTests(unittest.TestCase):
                 (tools / "uv").chmod(0o755)
                 if failing:
                     (home / "fail").touch()
-                env = {**os.environ, "HOME": str(home)}
+                env = {
+                    **os.environ,
+                    "HOME": str(home),
+                    "PATH": f"{tools}{os.pathsep}{system_bin}"
+                    if has_tools
+                    else str(system_bin),
+                }
                 for changed in (True, False):
                     result = subprocess.run(
                         [
@@ -55,9 +73,30 @@ class SetupNoticeTests(unittest.TestCase):
                         check=False,
                     )
                     self.assertEqual(
-                        result.returncode, 23 if failing else 0, result.stderr
+                        result.returncode,
+                        23 if failing and changed else 0,
+                        result.stderr,
                     )
-                    self.assertEqual("Open a new terminal" in result.stdout, changed)
+                    self.assertEqual(
+                        "Open a new terminal" in result.stdout,
+                        changed or not has_tools,
+                    )
+                    (home / "fail").unlink(missing_ok=True)
+                ready_env = {**env, "PATH": f"{tools}{os.pathsep}{system_bin}"}
+                ready = subprocess.run(
+                    [
+                        shutil.which("sh") or "sh",
+                        "scripts/dev_setup.sh",
+                        "--skip-smoke",
+                    ],
+                    cwd=ROOT,
+                    env=ready_env,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(ready.returncode, 0, ready.stderr)
+                self.assertNotIn("Open a new terminal", ready.stdout)
                 bash = shutil.which("bash")
                 if bash:
                     login = subprocess.run(

@@ -5,12 +5,20 @@ cd "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 case "${1:-}" in
     --help|-h) echo "Usage: sh scripts/dev_setup.sh [--skip-smoke] [--web-only]"; exit 0 ;;
 esac
+original_path=$PATH
 tools_changed=false
 finish() {
     status=$?
     trap - 0
-    if [ "$tools_changed" = true ]; then
-        echo "Open a new terminal before running make dev (user tools or shell profiles changed)."
+    tools_missing=false
+    for tool in uv node cargo; do
+        if ! (PATH="$original_path"; command -v "$tool") >/dev/null 2>&1; then
+            tools_missing=true
+            break
+        fi
+    done
+    if [ "$tools_changed" = true ] || [ "$tools_missing" = true ]; then
+        echo "Open a new terminal before running make dev (setup changed tools/profiles, or required tools are missing from the invoking PATH)."
     fi
     exit "$status"
 }
