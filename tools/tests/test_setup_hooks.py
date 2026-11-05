@@ -101,6 +101,7 @@ class PreCommitSecretScanTests(unittest.TestCase):
     def test_missing_gitleaks_warns_without_blocking(self) -> None:
         git = shutil.which("git")
         assert git
+        (ROOT / "tmp").mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=ROOT / "tmp") as bin_dir:
             os.symlink(git, Path(bin_dir) / "git")
             result = self.run_pre_commit(bin_dir)
