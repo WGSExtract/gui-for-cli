@@ -23,13 +23,24 @@ def run(command: str, args: list[str]) -> tuple[int, str]:
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
 
+# Windows hooks may start from a shell that predates setup's user PATH; match make.ps1.
+WINDOWS_TOOLS = """if command -v cygpath >/dev/null 2>&1 && [ -n "${USERPROFILE:-}" ]; then
+  profile=$(cygpath -u "$USERPROFILE")
+  PATH="$profile/.local/bin:$profile/.cargo/bin:$profile/.local/share/gui-for-cli/node:$PATH"
+  UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$(cygpath -w "$profile/.local/share/uv/python")}"
+  export UV_PYTHON_INSTALL_DIR
+fi
+"""
+
 HOOKS: list[tuple[str, str]] = [
     (
         "pre-commit",
         """#!/bin/sh
 set -eu
 cd "$(git rev-parse --show-toplevel)"
-run_python() {
+"""
+        + WINDOWS_TOOLS
+        + """run_python() {
   if [ -n "${PYTHON:-}" ]; then
     $PYTHON "$@"
   elif command -v uv >/dev/null 2>&1; then
@@ -39,6 +50,11 @@ run_python() {
   fi
 }
 run_python scripts/verify-dev.py
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --pre-commit --staged --redact --no-banner .
+else
+  echo "warning: gitleaks not found, so staged changes were not scanned for secrets (CI still scans). Install it: https://github.com/gitleaks/gitleaks#installing" >&2
+fi
 run_python tools/tasks.py lint
 """,
     ),
@@ -49,7 +65,9 @@ set -eu
 cd "$(git rev-parse --show-toplevel)"
 # Tests initialize their own repositories, not the repository being pushed.
 unset $(git rev-parse --local-env-vars)
-run_python() {
+"""
+        + WINDOWS_TOOLS
+        + """run_python() {
   if [ -n "${PYTHON:-}" ]; then
     $PYTHON "$@"
   elif command -v uv >/dev/null 2>&1; then

@@ -3,7 +3,7 @@
 Clone the repository, then run one command from its root:
 
 ```sh
-git clone https://github.com/theontho/gui-for-cli.git
+git clone https://github.com/WGSExtract/gui-for-cli.git
 cd gui-for-cli
 make setup
 ```
@@ -12,7 +12,7 @@ On Linux/macOS without `make`, use `sh scripts/dev_setup.sh` instead.
 On Windows, use **Windows PowerShell 5.1**, not WSL:
 
 ```powershell
-git clone https://github.com/theontho/gui-for-cli.git
+git clone https://github.com/WGSExtract/gui-for-cli.git
 cd gui-for-cli
 powershell -ExecutionPolicy Bypass -File .\make.ps1 setup
 ```
@@ -111,8 +111,10 @@ powershell -ExecutionPolicy Bypass -File .\make.ps1 test
 `dev` runs the TypeScript watcher and reloadable server on all three platforms.
 Use Ctrl-C to stop both. The process-scoped execution-policy bypass is required
 on fresh Windows clients where the default policy is Restricted.
-For a fork, push to your fork and open a PR against `theontho/gui-for-cli`.
-Hooks check identity/lint on commit and tests on push. Run `make build-tauri`
+For a fork, push to your fork and open a PR against `WGSExtract/gui-for-cli`.
+Hooks check identity/lint on commit and tests on push. The commit hook also
+scans staged changes for secrets when [gitleaks](https://github.com/gitleaks/gitleaks#installing)
+is installed, and warns otherwise; CI always scans. Run `make build-tauri`
 after changing the Tauri shell or packaging. `make tauri` runs the desktop UI.
 
 ## Make an AI-directed change
@@ -120,7 +122,7 @@ after changing the Tauri shell or packaging. `make tauri` runs the desktop UI.
 Install and authenticate your preferred agent CLI using its official instructions.
 Run it from this repository so it reads `AGENTS.md` / `CLAUDE.md`.
 Pick an issue from the
-[good-first-issue list](https://github.com/theontho/gui-for-cli/labels/good%20first%20issue)
+[good-first-issue list](https://github.com/WGSExtract/gui-for-cli/labels/good%20first%20issue)
 and give it a bounded request, for example:
 
 > Fix #N. Read the issue and repository instructions, confirm the behavior,
