@@ -8,7 +8,7 @@ import { loadConfig, saveBundleState, saveConfig } from "./config-store.js";
 import { errorMessage, HttpError } from "./errors.js";
 import { contentType, json, notFound, readJSONBody, serveIndex, staticFile } from "./http.js";
 import { findConfigEditorControl, locationKey, resolveActionReference, resolveDataSource, type DynamicActions } from "./manifest-lookup.js";
-import { streamNDJSON } from "./ndjson.js";
+import { streamNDJSON, type EmitEvent } from "./ndjson.js";
 import { configPath, distModulePath, normalizeContext } from "./paths.js";
 import { pickPath, type NativePickerEndpoint } from "./path-picker.js";
 import { optionalString, parseActionReference, parseBundleStatePatch, parseCommandContext, parseLabels, parseManifestLocation, parsePrecheckTarget, requestObject, requiredString } from "./request-bodies.js";
@@ -16,6 +16,7 @@ import { applySecurityHeaders, guardRequest } from "./request-guard.js";
 import { runSetup, runUninstall } from "./setup-runner.js";
 import { wrapEmitWithEventLog } from "./setup-event-log.js";
 import { bundleArchiveFormat } from "./bundle-archive.js";
+import { workspaceLocationInfo } from "./workspace-location.js";
 
 type ManifestResponse = Record<string, unknown> & { appVersion?: string; autoRunSetup?: boolean };
 
@@ -42,6 +43,7 @@ export interface RequestHandlerContext {
         load: (locale?: string, preferredLocales?: string[]) => Promise<LocalizedBundle>;
     };
     loadBundle: (requestedSource: string) => Promise<LooseRecord>;
+    moveWorkspace: (directory: string | null, emit: EmitEvent, signal: AbortSignal) => Promise<void>;
     /** The workspace manifest; actions, data sources, and settings files are only ever resolved from it. */
     manifest: BundleManifest;
     maxBodyBytes: number;
@@ -123,6 +125,18 @@ export function createRequestHandler(context: RequestHandlerContext) {
             await openPath(context.bundleRoot, context.runProcess);
             return { ok: true };
         }),
+        "/api/workspace-location/move": async (request, response) => {
+            const body = await readBody(request, context);
+            const directory = optionalString(body, "directory")?.trim() || null;
+            await streamNDJSON(
+                response,
+                async (emit, signal) => {
+                    await context.moveWorkspace(directory, emit, signal);
+                    await emit({ type: "complete" });
+                },
+                (error) => ({ type: "error", error }),
+            );
+        },
         "/api/config/load": jsonRoute(context, async (body) => {
             const control = findConfigEditorControl(context.manifest, requiredString(body, "controlID"));
             return loadConfig(control, optionalString(body, "path"), context.bundleRoot);
@@ -197,7 +211,10 @@ async function handleGet(url: URL, request: IncomingMessage, response: ServerRes
     if (url.pathname === "/api/manifest") {
         const locale = url.searchParams.has("locale") ? url.searchParams.get("locale") || undefined : context.defaultLocale;
         const loaded = await context.localizedBundleLoader.load(locale, preferredLocales(request.headers["accept-language"]));
-        const body = withAutoRunSetup(withAppVersion(loaded, context.appVersion));
+        const body = {
+            ...withAutoRunSetup(withAppVersion(loaded, context.appVersion)),
+            workspaceLocation: await workspaceLocationInfo(context.manifest, context.bundleRoot),
+        };
         json(response, context.enableDevReload ? { ...body, devReload: true } : body);
         return;
     }
