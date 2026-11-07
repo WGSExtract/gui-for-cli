@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main"]
     paths:
+      - "redirect/**"
       - "site/**"
       - "site_src/**"
       - "scripts/build_site.py"
@@ -35,16 +36,10 @@ jobs:
         with:
           enablement: true
 
-      - name: Validate site sources
-        run: python3 scripts/validate_site_sources.py
-
-      - name: Build static site
-        run: python3 scripts/build_site.py
-
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: site
+          path: redirect
 
       - name: Deploy to GitHub Pages
         id: deployment
