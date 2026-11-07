@@ -12,7 +12,7 @@ One TypeScript app packaged with Tauri for Windows, macOS, and Linux.
 - `app/web/packagers/tauri/` — Tauri shell (Rust): window, menus, native pickers, updater only
 
 ## App behavior
-- Configuration lives in platform-standard Application Support paths
+- The app's own settings live in platform-standard Application Support paths; user data (settings file, outputs, libraries, temporary files, logs) defaults to the visible `{{bundleWorkspace}}` folder in the user's home, and uninstall asks before deleting it
 - **Always redact** keys, tokens, and secrets in displayed configuration
 - Behavior must hold on Windows, macOS, and Linux
 - Verify both interactive and non-interactive behavior of scripts
